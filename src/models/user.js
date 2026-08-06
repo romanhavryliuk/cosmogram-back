@@ -12,14 +12,20 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Email is required'],
       unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
       required: [true, 'Password is required'],
     },
-    token: {
+    accessToken: {
       type: String,
-      default: '',
+      default: null,
+    },
+    refreshToken: {
+      type: String,
+      default: null,
     },
   },
   { versionKey: false, timestamps: true }
@@ -38,7 +44,11 @@ const loginSchema = Joi.object({
   password: Joi.string().min(8).required(),
 });
 
-const schemas = { registerSchema, loginSchema };
+const refreshSchema = Joi.object({
+  refreshToken: Joi.string().required(),
+});
+
+const schemas = { registerSchema, loginSchema, refreshSchema };
 
 const User = model('user', userSchema);
 
