@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
-const { HttpError } = require('../helpers');
+const { HttpError, sanitizeUser } = require('../helpers');
 
 const createTokens = (id) => {
   const {
@@ -35,11 +35,14 @@ const register = async (req, res, next) => {
     const hashPassword = await bcrypt.hash(password, 10);
     const newUser = await User.create({ name, email, password: hashPassword });
 
+    // registration logs the user straight in, so it issues the same token pair
+    // as login: the frontend stores it and never asks for the password again
+    const tokens = createTokens(newUser._id);
+    await User.findByIdAndUpdate(newUser._id, tokens);
+
     res.status(201).json({
-      user: {
-        name: newUser.name,
-        email: newUser.email,
-      },
+      ...tokens,
+      user: sanitizeUser(newUser),
     });
   } catch (error) {
     next(error);
@@ -67,10 +70,7 @@ const login = async (req, res, next) => {
 
     res.json({
       ...tokens,
-      user: {
-        name: user.name,
-        email: user.email,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
     next(error);
@@ -106,9 +106,8 @@ const refresh = async (req, res, next) => {
 
 const getCurrent = async (req, res, next) => {
   try {
-    const { name, email } = req.user;
-
-    res.json({ user: { name, email } });
+    // the frontend reads this response as a bare `User`, without a wrapper
+    res.json(sanitizeUser(req.user));
   } catch (error) {
     next(error);
   }
