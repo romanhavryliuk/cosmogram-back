@@ -1,10 +1,6 @@
-const { PYTHAGOREAN_DIGITS } = require('../models/profile');
+const { buildWorkingNumbers, buildPythagoreanSquare } = require('./pythagorean-square');
 
 /**
- * The Pythagorean square below is the real thing: the frontend documents a
- * cell as "how many times the digit occurs in the birth date", and that is
- * exactly what it counts.
- *
  * STEP 4 — `buildDestinyMatrix()` reduces the birth date to arcana with a
  * plain sum-and-fold, which is only one of several traditions. Confirm the
  * intended method against the project brief before treating it as final;
@@ -27,16 +23,6 @@ const toArcana = (value) => {
   }
 
   return result;
-};
-
-const buildPythagoreanSquare = (birthDate) => {
-  const digits = birthDate.replace(/\D/g, '');
-
-  return PYTHAGOREAN_DIGITS.reduce((square, digit) => {
-    const count = digits.split('').filter((char) => char === digit).length;
-    square[digit] = digit.repeat(count);
-    return square;
-  }, {});
 };
 
 const buildDestinyMatrix = (birthDate) => {
@@ -65,4 +51,4 @@ const buildDestinyMatrix = (birthDate) => {
   };
 };
 
-module.exports = { buildPythagoreanSquare, buildDestinyMatrix };
+module.exports = { buildPythagoreanSquare, buildWorkingNumbers, buildDestinyMatrix };

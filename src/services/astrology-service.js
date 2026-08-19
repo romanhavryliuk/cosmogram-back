@@ -1,17 +1,5 @@
-const { ZODIAC_SIGNS, PLANETS } = require('../models/profile');
-
-/**
- * STEP 3 PLACEHOLDER — the planet longitudes are not astronomically true yet.
- *
- * Everything built on top of them is real and stays: signs, degrees, houses,
- * aspects and the ascendant are derived the way they will be once an ephemeris
- * is plugged in. The longitudes themselves come from a deterministic hash of
- * the birth data, so the same input always renders the same chart and the UI
- * can be finished against stable output.
- *
- * Step 6 swaps the `seededAngle()` call for a real ephemeris lookup and leaves
- * the rest of this file untouched.
- */
+const { ZODIAC_SIGNS } = require('../models/profile');
+const { localToUtcDate, calcChart } = require('./ephemeris');
 
 const FULL_CIRCLE = 360;
 const SIGN_ARC = 30;
@@ -34,29 +22,29 @@ const signOf = (longitude) =>
 
 const degreeInSign = (longitude) => round(normalize(longitude) % SIGN_ARC);
 
-/** Equal-house system: the 1st house starts exactly at the ascendant */
-const houseOf = (longitude, ascendant) =>
-  Math.floor(normalize(longitude - ascendant) / SIGN_ARC) + 1;
+/**
+ * Which of the 12 houses a longitude falls in. Placidus houses are not
+ * equal 30° slices, so this walks the real cusps rather than dividing the
+ * circle evenly from the ascendant.
+ */
+const houseOfLongitude = (longitude, cusps) => {
+  const target = normalize(longitude);
+
+  for (let house = 1; house <= 12; house += 1) {
+    const start = normalize(cusps[house - 1]);
+    const span = normalize(cusps[house % 12] - start);
+    if (normalize(target - start) < span) {
+      return house;
+    }
+  }
+
+  return 12;
+};
 
 /** Shortest angle between two ecliptic longitudes, 0–180 */
 const separation = (a, b) => {
   const diff = normalize(a - b);
   return diff > 180 ? FULL_CIRCLE - diff : diff;
-};
-
-/** Deterministic 0–359.99 angle for a seed string */
-const seededAngle = (seed) => {
-  let value = 7;
-  for (let i = 0; i < seed.length; i += 1) {
-    value = (value * 31 + seed.charCodeAt(i)) % 36000;
-  }
-  return value / 100;
-};
-
-const ascendantFor = (birthTime, place) => {
-  const [hours, minutes] = birthTime.split(':').map(Number);
-  // the whole day maps onto the whole circle, shifted by the birth meridian
-  return round(normalize((hours * 60 + minutes) / 4 + place.longitude));
 };
 
 const findAspects = (planets) => {
@@ -84,40 +72,34 @@ const findAspects = (planets) => {
 };
 
 const buildNatalChart = ({ birthDate, birthTime, place }) => {
-  const seed = `${birthDate}T${birthTime}@${place.latitude},${place.longitude}`;
-  const ascendant = ascendantFor(birthTime, place);
-
-  const planets = PLANETS.map((planet) => {
-    const longitude = seededAngle(`${seed}:${planet}`);
-
-    return {
-      planet,
-      sign: signOf(longitude),
-      degree: degreeInSign(longitude),
-      longitude: round(longitude),
-      house: houseOf(longitude, ascendant),
-      // the luminaries are never retrograde
-      retrograde: planet !== 'sun' && planet !== 'moon' && longitude % 5 < 1,
-    };
+  const date = localToUtcDate(birthDate, birthTime, place.timezone);
+  const raw = calcChart({
+    date,
+    latitude: place.latitude,
+    longitude: place.longitude,
   });
 
-  const houses = Array.from({ length: 12 }, (_, index) => {
-    const longitude = normalize(ascendant + index * SIGN_ARC);
+  const planets = raw.planets.map(({ planet, longitude, retrograde }) => ({
+    planet,
+    sign: signOf(longitude),
+    degree: degreeInSign(longitude),
+    longitude: round(longitude),
+    house: houseOfLongitude(longitude, raw.cusps),
+    retrograde,
+  }));
 
-    return {
-      house: index + 1,
-      sign: signOf(longitude),
-      longitude: round(longitude),
-    };
-  });
+  const houses = raw.cusps.map((longitude, index) => ({
+    house: index + 1,
+    sign: signOf(longitude),
+    longitude: round(longitude),
+  }));
 
   return {
     planets,
     houses,
     aspects: findAspects(planets),
-    ascendant,
-    // the midheaven sits a quadrant ahead of the ascendant
-    midheaven: round(normalize(ascendant + 270)),
+    ascendant: round(raw.ascendant),
+    midheaven: round(raw.midheaven),
   };
 };
 

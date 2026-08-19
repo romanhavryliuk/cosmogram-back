@@ -197,16 +197,33 @@ Every error is returned in the same shape:
 `400` — validation error, `401` — not authorized, `404` — unknown route, `409` — conflict,
 `500` — server error.
 
+## Places API
+
+Base path: `/api/places`. Requires a Bearer token — the geocoding key is
+quota-limited (2,500 requests/day on the free OpenCage tier), so this is not
+open to anonymous traffic.
+
+| Method | Endpoint | Description                                  |
+| ------ | -------- | --------------------------------------------- |
+| GET    | `/?query=` | Birth place autocomplete, via OpenCage       |
+
+```json
+[
+  {
+    "label": "Lviv, Lviv Raion, Ukraine",
+    "latitude": 49.841952,
+    "longitude": 24.0315921,
+    "timezone": "Europe/Kyiv"
+  }
+]
+```
+
+Results without a resolvable IANA timezone are dropped — a place without one
+cannot become a valid profile (`place.timezone` is required).
+
 ## Not implemented yet
 
-- `GET /api/places?query=` — birth place autocomplete. `PlaceAutocomplete` on
-  the frontend calls it, so the create form cannot pick a place until it
-  exists. It needs a geocoder that also returns an IANA timezone.
-- Real planet positions. `astrology-service.js` derives longitudes from a
-  deterministic hash of the birth data: the chart is stable and structurally
-  valid, but not astronomically true. Everything built on top of the
-  longitudes — signs, degrees, houses, aspects, the ascendant — is final and
-  survives the swap to a real ephemeris.
 - The destiny matrix reduction in `numerology-service.js` follows one of
   several traditions; confirm the method against the project brief. The
-  Pythagorean square is already computed the way the frontend documents it.
+  Pythagorean square (with its four working numbers) is already computed
+  the way the classic method defines it.
