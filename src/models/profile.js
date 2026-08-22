@@ -91,10 +91,31 @@ const arcanaSchema = (keys) =>
     Object.fromEntries(keys.map((key) => [key, { type: Number, required: true }]))
   );
 
+const ancestralLineSchema = subSchema({
+  first: { type: Number, required: true },
+  second: { type: Number, required: true },
+  total: { type: Number, required: true },
+});
+
 const destinyMatrixSchema = subSchema({
   center: { type: Number, required: true },
   personal: { type: arcanaSchema(['a', 'b', 'c', 'd']), required: true },
   karmic: { type: arcanaSchema(['e', 'f', 'g', 'h']), required: true },
+  // fields added after the first version of this schema: profiles saved
+  // before they existed simply won't have them on read — Mongoose only
+  // enforces `required` on save, not on read, so old documents keep loading
+  purpose: {
+    type: arcanaSchema(['personal', 'social', 'spiritual']),
+    required: true,
+  },
+  ancestralPrograms: {
+    type: subSchema({
+      paternal: { type: ancestralLineSchema, required: true },
+      maternal: { type: ancestralLineSchema, required: true },
+    }),
+    required: true,
+  },
+  familyPower: { type: Number, required: true },
   money: { type: Number, required: true },
   love: { type: Number, required: true },
 });
