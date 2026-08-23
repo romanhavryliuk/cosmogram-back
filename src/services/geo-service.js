@@ -19,6 +19,9 @@ const searchPlaces = async (query) => {
   return data.results
     .filter((result) => result.annotations?.timezone?.name)
     .map((result) => ({
+      // coordinates are unique within a single OpenCage response, which is
+      // all a React list key here needs — these suggestions are never stored
+      id: `${result.geometry.lat},${result.geometry.lng}`,
       label: result.formatted,
       latitude: result.geometry.lat,
       longitude: result.geometry.lng,
