@@ -89,7 +89,9 @@ the same token pair as `/login`.
 
 ### POST /api/auth/logout
 
-`204 No Content` — both tokens are cleared, the access token stops working immediately.
+`204 No Content` — the refresh token is revoked, so the session cannot be
+extended. The access token is not stored server-side and stays valid until it
+expires on its own (`ACCESS_TOKEN_TTL`, 15 minutes by default).
 
 ## Profiles API
 

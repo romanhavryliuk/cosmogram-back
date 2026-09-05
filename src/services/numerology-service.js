@@ -1,4 +1,4 @@
-const { buildWorkingNumbers, buildPythagoreanSquare } = require('./pythagorean-square');
+const { buildPythagoreanSquare } = require('./pythagorean-square');
 
 /**
  * STEP 4 — `buildDestinyMatrix()` reduces the birth date to arcana with a
@@ -87,4 +87,4 @@ const buildDestinyMatrix = (birthDate) => {
   };
 };
 
-module.exports = { buildPythagoreanSquare, buildWorkingNumbers, buildDestinyMatrix };
+module.exports = { buildPythagoreanSquare, buildDestinyMatrix };

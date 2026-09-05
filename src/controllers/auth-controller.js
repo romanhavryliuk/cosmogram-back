@@ -7,7 +7,9 @@ const createTokens = (id) => {
   const {
     ACCESS_SECRET_KEY,
     REFRESH_SECRET_KEY,
-    ACCESS_TOKEN_TTL = '1h',
+    // short by design: the access token is never stored, so logout cannot
+    // revoke it directly — this window is how long it outlives a logout
+    ACCESS_TOKEN_TTL = '15m',
     REFRESH_TOKEN_TTL = '7d',
   } = process.env;
 
@@ -38,7 +40,9 @@ const register = async (req, res, next) => {
     // registration logs the user straight in, so it issues the same token pair
     // as login: the frontend stores it and never asks for the password again
     const tokens = createTokens(newUser._id);
-    await User.findByIdAndUpdate(newUser._id, tokens);
+    await User.findByIdAndUpdate(newUser._id, {
+      refreshToken: tokens.refreshToken,
+    });
 
     res.status(201).json({
       ...tokens,
@@ -66,7 +70,9 @@ const login = async (req, res, next) => {
     }
 
     const tokens = createTokens(user._id);
-    await User.findByIdAndUpdate(user._id, tokens);
+    await User.findByIdAndUpdate(user._id, {
+      refreshToken: tokens.refreshToken,
+    });
 
     res.json({
       ...tokens,
@@ -96,7 +102,9 @@ const refresh = async (req, res, next) => {
     }
 
     const tokens = createTokens(user._id);
-    await User.findByIdAndUpdate(user._id, tokens);
+    await User.findByIdAndUpdate(user._id, {
+      refreshToken: tokens.refreshToken,
+    });
 
     res.json(tokens);
   } catch (error) {
@@ -115,10 +123,9 @@ const getCurrent = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, {
-      accessToken: null,
-      refreshToken: null,
-    });
+    // revoking the refresh token ends the session: the access token still in
+    // the client's hands expires on its own within ACCESS_TOKEN_TTL
+    await User.findByIdAndUpdate(req.user._id, { refreshToken: null });
 
     res.status(204).send();
   } catch (error) {

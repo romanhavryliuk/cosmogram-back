@@ -19,10 +19,8 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Password is required'],
     },
-    accessToken: {
-      type: String,
-      default: null,
-    },
+    // only the refresh token is stored: it is what logout revokes. Access
+    // tokens stay stateless and short-lived, so there is nothing to keep
     refreshToken: {
       type: String,
       default: null,
