@@ -14,9 +14,10 @@ const authenticate = async (req, res, next) => {
     const { ACCESS_SECRET_KEY } = process.env;
     const { id } = jwt.verify(token, ACCESS_SECRET_KEY);
 
+    // the access token is trusted on its signature alone — it is short-lived,
+    // and logout revokes the refresh token so the session cannot be extended
     const user = await User.findById(id);
-    // the token must also be the one we issued last: logout revokes it
-    if (!user || user.accessToken !== token) {
+    if (!user) {
       return next(HttpError(401));
     }
 

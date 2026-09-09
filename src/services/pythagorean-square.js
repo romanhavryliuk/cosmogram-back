@@ -40,4 +40,4 @@ const buildPythagoreanSquare = (birthDate) => {
   }, {});
 };
 
-module.exports = { buildWorkingNumbers, buildPythagoreanSquare };
+module.exports = { buildPythagoreanSquare };
