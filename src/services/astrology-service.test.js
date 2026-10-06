@@ -92,3 +92,20 @@ test('buildNatalChart matches the astro.com fixture (Busk, 1996-12-21 03:30)', (
     `midheaven off: got ${chart.midheaven}, expected ~${expectedMidheaven}`
   );
 });
+
+test('buildNatalChart without a birth time leaves out everything time-dependent', () => {
+  const chart = buildNatalChart({ ...FIXTURE_INPUT, birthTime: null });
+
+  assert.deepStrictEqual(chart.houses, []);
+  assert.strictEqual(chart.ascendant, undefined);
+  assert.strictEqual(chart.midheaven, undefined);
+
+  for (const planet of chart.planets) {
+    assert.strictEqual(planet.house, undefined, `${planet.planet} has a house`);
+  }
+
+  // cast for noon instead of 03:30 — the Sun moves only ~0.35° in those
+  // hours, so it stays in the fixture's sign
+  const sun = chart.planets.find((p) => p.planet === 'sun');
+  assert.strictEqual(sun.sign, EXPECTED_PLANETS.sun.sign);
+});
