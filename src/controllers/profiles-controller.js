@@ -19,18 +19,23 @@ const SUMMARY_PROJECTION = {
   birthDate: 1,
   'place.label': 1,
   createdAt: 1,
-  'chart.planets': { $elemMatch: { planet: 'sun' } },
+  // $elemMatch projection works only on top-level arrays — on chart.planets
+  // MongoDB rejects the whole query, so take two small fields per planet
+  // and pick the Sun in code
+  'chart.planets.planet': 1,
+  'chart.planets.sign': 1,
   'destinyMatrix.center': 1,
 };
 
 // flattened so the card does not have to dig through the chart shape
 const toSummary = (profile) => {
   const { chart, destinyMatrix, ...rest } = profile.toJSON();
+  const sun = chart?.planets?.find(({ planet }) => planet === 'sun');
 
   return {
     ...rest,
-    sunSign: chart.planets[0].sign,
-    centralArcana: destinyMatrix.center,
+    sunSign: sun?.sign ?? null,
+    centralArcana: destinyMatrix?.center ?? null,
   };
 };
 
