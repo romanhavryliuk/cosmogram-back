@@ -15,9 +15,16 @@ const buildWorkingNumbers = (birthDate) => {
   const [year, month, day] = birthDate.split('-');
   const digits = `${day}${month}${year}`;
 
+  // the method takes the first *non-zero* digit of the day: for the 5th
+  // that is 5, not the leading 0 of "05" — otherwise everyone born on
+  // the 1st–9th gets c = a and a wrong square
+  const firstDayDigit = Number(day[0] === '0' ? day[1] : day[0]);
+
   const a = sumDigits(digits);
   const b = sumDigits(a);
-  const c = a - 2 * Number(digits[0]);
+  // early-month dates with a small digit sum can go below zero
+  // (05.01.2000: 8 - 2 * 5); calculators use the absolute value
+  const c = Math.abs(a - 2 * firstDayDigit);
   const d = sumDigits(c);
 
   return { a, b, c, d };

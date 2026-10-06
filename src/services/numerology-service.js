@@ -44,19 +44,8 @@ const buildDestinyMatrix = (birthDate) => {
     h: toArcana(d + a),
   };
 
-  // the three-level purpose line: personal square, karmic square, and the
-  // two folded together — `personal` is `center` by another name, kept as
-  // its own field so the line reads as one coherent block
-  const personalPurpose = center;
-  const socialPurpose = toArcana(karmic.e + karmic.f + karmic.g + karmic.h);
-  const purpose = {
-    personal: personalPurpose,
-    social: socialPurpose,
-    spiritual: toArcana(personalPurpose + socialPurpose),
-  };
-
   // the karmic ring has two diagonals — e/g and f/h — read separately as
-  // the paternal and maternal ancestral lines
+  // the paternal (top-left to bottom-right) and maternal ancestral lines
   const ancestralPrograms = {
     paternal: {
       first: karmic.e,
@@ -70,10 +59,25 @@ const buildDestinyMatrix = (birthDate) => {
     },
   };
 
-  // same sum as `purpose.social` — kept as its own field because it means
-  // something different (ancestral strength, not social purpose), not
-  // because it is computed differently
-  const familyPower = socialPurpose;
+  // the three-level purpose line. Each half is folded on its own before
+  // adding — folding only the grand total (as `center` does) gives a
+  // different arcana whenever a half goes above 22:
+  // personal = sky (b + d) + earth (a + c), social = paternal + maternal
+  // lines, spiritual = personal + social
+  const sky = toArcana(b + d);
+  const earth = toArcana(a + c);
+  const personalPurpose = toArcana(sky + earth);
+  const socialPurpose = toArcana(
+    ancestralPrograms.paternal.total + ancestralPrograms.maternal.total
+  );
+  const purpose = {
+    personal: personalPurpose,
+    social: socialPurpose,
+    spiritual: toArcana(personalPurpose + socialPurpose),
+  };
+
+  // the four karmic arcana together — ancestral strength
+  const familyPower = toArcana(karmic.e + karmic.f + karmic.g + karmic.h);
 
   return {
     center,

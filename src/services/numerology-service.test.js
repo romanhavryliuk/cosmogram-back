@@ -12,9 +12,9 @@ const {
  * them silently.
  *
  * Note the reduction method: arcana are folded with a digit sum, so the year
- * 1996 -> 25 -> 7. Ladini's tradition subtracts 22 instead (25 -> 3), which
- * would change every derived number here. Whichever method the project
- * settles on, this fixture has to be re-verified alongside it.
+ * 1996 -> 25 -> 7. Some sources subtract 22 instead (25 -> 3); Ukrainian
+ * descriptions of Ladini's method use the digit sum, so the project does too.
+ * Switching methods would change every derived number here.
  */
 const BIRTH_DATE = '1996-12-21';
 
@@ -44,6 +44,15 @@ test('destiny matrix: purpose line, ancestral programs and family power', () => 
   });
 
   assert.strictEqual(familyPower, 7);
+});
+
+test('destiny matrix: personal purpose folds sky and earth separately', () => {
+  // 20.12.1991: a 20, b 12, c 20, d 7 -> center 59 -> 14, but
+  // sky 12 + 7 = 19, earth 20 + 20 = 40 -> 4, personal 23 -> 5
+  const { center, purpose } = buildDestinyMatrix('1991-12-20');
+
+  assert.strictEqual(center, 14);
+  assert.deepStrictEqual(purpose, { personal: 5, social: 10, spiritual: 15 });
 });
 
 test('destiny matrix: every arcana stays within 1-22', () => {
@@ -80,6 +89,22 @@ test('pythagorean square counts date digits plus the working numbers', () => {
     6: '6',
     7: '7',
     8: '',
+    9: '999',
+  });
+});
+
+test('pythagorean square uses the first non-zero digit of an early day', () => {
+  // 05.03.1990: working numbers 27, 9, 27 - 2 * 5 = 17, 8
+  // (with the leading 0 the third number would wrongly stay 27)
+  assert.deepStrictEqual(buildPythagoreanSquare('1990-03-05'), {
+    1: '11',
+    2: '2',
+    3: '3',
+    4: '',
+    5: '5',
+    6: '',
+    7: '77',
+    8: '8',
     9: '999',
   });
 });
