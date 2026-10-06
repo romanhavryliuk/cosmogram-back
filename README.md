@@ -103,7 +103,10 @@ only ever visible to the user who created it — someone else's id reads as `404
 | GET    | `/`      | Saved cosmograms of the current user, newest first |
 | GET    | `/:id`   | One cosmogram with all computed blocks             |
 | POST   | `/`      | Create a cosmogram from birth data                 |
+| PATCH  | `/:id`   | Edit the name or the birth data                    |
 | DELETE | `/:id`   | Delete a cosmogram                                 |
+| POST   | `/:id/share` | Turn on the public link, returns its `shareId` |
+| DELETE | `/:id/share` | Turn the public link off                       |
 
 ### POST /api/profiles
 
@@ -123,6 +126,13 @@ only ever visible to the user who created it — someone else's id reads as `404
 
 `birthDate` is `yyyy-MM-dd` and `birthTime` is `HH:mm`, both local to the birth
 place — they are stored as strings so no timezone ever shifts them.
+
+`birthTime` is optional: omit it or send `null` when it is unknown. The chart is
+then cast for local noon (the Moon can be off by up to ~7°), and everything that
+depends on the exact time is left out: `chart.houses` is `[]`, `ascendant`,
+`midheaven` and each planet's `house` are absent. The response carries
+`"birthTime": null`. The destiny matrix and the Pythagorean square use only the
+date and are unaffected.
 
 `201 Created` — the natal chart, the destiny matrix and the Pythagorean square
 are computed once here and stored, so reads never recalculate anything.
@@ -170,7 +180,9 @@ are computed once here and stored, so reads never recalculate anything.
 
 ### GET /api/profiles
 
-`200 OK` — dashboard cards, without the computed blocks.
+`200 OK` — dashboard cards, without the computed blocks. `sunSign` and
+`centralArcana` are lifted out of the stored chart and destiny matrix for the
+card preview, so the frontend does not recompute them.
 
 ```json
 [
@@ -179,14 +191,51 @@ are computed once here and stored, so reads never recalculate anything.
     "name": "Maria",
     "birthDate": "1998-03-15",
     "createdAt": "2026-08-16T10:00:00.000Z",
-    "place": { "label": "Lviv, Ukraine" }
+    "place": { "label": "Lviv, Ukraine" },
+    "sunSign": "pisces",
+    "centralArcana": 9
   }
 ]
 ```
 
+### PATCH /api/profiles/:id
+
+Any subset of the `POST` fields, at least one. `place` is replaced as a whole,
+so it needs all four of its fields.
+
+```json
+{ "name": "Maria K.", "birthTime": null }
+```
+
+`200 OK` — the full updated profile, same shape as `POST`. Renaming keeps the
+stored blocks; changing `birthDate`, `birthTime` or `place` recomputes all of
+them. `updatedAt` is set on every edit (profiles created before editing existed
+lack it until their first one).
+
 ### DELETE /api/profiles/:id
 
 `204 No Content`
+
+### POST /api/profiles/:id/share
+
+`200 OK` — `{ "shareId": "kq3V0bXh2mZp9cRw" }`. Idempotent: sharing an already
+shared profile returns the same id, so links already sent keep working. Every
+profile also carries `shareId` (`null` while not shared).
+
+### DELETE /api/profiles/:id/share
+
+`204 No Content` — the link stops working. Sharing again issues a new `shareId`,
+so a revoked link never comes back.
+
+## Share API
+
+`GET /api/share/:shareId` — no auth. `200 OK` with the profile as `GET
+/api/profiles/:id` returns it, minus `id`, `ownerId`, `shareId`, the
+timestamps and the place coordinates — `place` is just `{ "label": "..." }`.
+`404` if the link was never issued or has been turned off.
+
+The link preview image is rendered by the frontend (`next/og`) from this
+response; the backend serves data only.
 
 ## Errors
 
@@ -197,13 +246,29 @@ Every error is returned in the same shape:
 ```
 
 `400` — validation error, `401` — not authorized, `404` — unknown route, `409` — conflict,
-`500` — server error.
+`429` — rate limit hit, `500` — server error.
+
+## Preview API
+
+`POST /api/preview` — no auth. Lets a guest see their result before signing up.
+Takes the same body as `POST /api/profiles`, computes everything and returns it
+without saving: `200 OK` with the profile shape minus `id`, `ownerId` and the
+timestamps. To keep it after signing up, the frontend sends the same body to
+`POST /api/profiles`.
+
+Rate-limited to 20 requests per 15 minutes per IP; past that it answers `429`.
 
 ## Places API
 
-Base path: `/api/places`. Requires a Bearer token — the geocoding key is
-quota-limited (2,500 requests/day on the free OpenCage tier), so this is not
-open to anonymous traffic.
+Base path: `/api/places`. No auth — the guest form needs it too. The geocoding
+key is quota-limited (2,500 requests/day on the free OpenCage tier), so the
+route is rate-limited to 60 requests per 15 minutes per IP (`429` past that).
+
+Results are cached in memory for 7 days (up to 5,000 queries, least recently
+used evicted first), keyed by the query trimmed and lowercased — so "Lviv" and
+" lviv" cost one OpenCage request. Identical lookups that arrive at the same
+time share one request; failures are not cached. The cache is per instance and
+empties on restart.
 
 | Method | Endpoint | Description                                  |
 | ------ | -------- | --------------------------------------------- |

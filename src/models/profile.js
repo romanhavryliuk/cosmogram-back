@@ -61,7 +61,9 @@ const planetPositionSchema = subSchema({
   sign: { type: String, enum: ZODIAC_SIGNS, required: true },
   degree: { type: Number, required: true },
   longitude: { type: Number, required: true },
-  house: { type: Number, required: true },
+  // the house, the ascendant and the midheaven all depend on the birth time,
+  // so a chart without one simply has none of them
+  house: { type: Number },
   retrograde: { type: Boolean, default: false },
 });
 
@@ -82,8 +84,8 @@ const chartSchema = subSchema({
   planets: [planetPositionSchema],
   houses: [houseCuspSchema],
   aspects: [aspectSchema],
-  ascendant: { type: Number, required: true },
-  midheaven: { type: Number, required: true },
+  ascendant: { type: Number },
+  midheaven: { type: Number },
 });
 
 const arcanaSchema = (keys) =>
@@ -135,10 +137,12 @@ const profileSchema = new Schema(
       match: [dateRegexp, 'Birth date must be in yyyy-MM-dd format'],
       required: [true, 'Birth date is required'],
     },
+    // null when the user does not know it — see buildNatalChart for what
+    // that leaves out of the chart
     birthTime: {
       type: String,
       match: [timeRegexp, 'Birth time must be in HH:mm format'],
-      required: [true, 'Birth time is required'],
+      default: null,
     },
     place: { type: placeSchema, required: true },
     ownerId: {
@@ -149,11 +153,14 @@ const profileSchema = new Schema(
     chart: { type: chartSchema, required: true },
     destinyMatrix: { type: destinyMatrixSchema, required: true },
     pythagoreanSquare: { type: pythagoreanSquareSchema, required: true },
+    // public link token; null while the owner has not shared the profile
+    shareId: { type: String, default: null },
   },
   {
     versionKey: false,
-    // profiles are never edited, only created and deleted
-    timestamps: { createdAt: true, updatedAt: false },
+    // profiles saved before editing existed have no `updatedAt` until their
+    // first edit
+    timestamps: true,
     toJSON: {
       // the frontend `Profile` type expects `id`, not `_id`
       transform: (doc, ret) => {
@@ -168,25 +175,45 @@ const profileSchema = new Schema(
 // every read is scoped to one owner and sorted newest first
 profileSchema.index({ ownerId: 1, createdAt: -1 });
 
+// partial rather than sparse: a sparse index still indexes explicit nulls,
+// and every unshared profile has one
+profileSchema.index(
+  { shareId: 1 },
+  { unique: true, partialFilterExpression: { shareId: { $type: 'string' } } }
+);
+
 profileSchema.post('save', handleMongooseError);
 
-const createProfileSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(60).required(),
-  birthDate: Joi.string().pattern(dateRegexp).required().messages({
+const profileFields = {
+  name: Joi.string().trim().min(1).max(60),
+  birthDate: Joi.string().pattern(dateRegexp).messages({
     'string.pattern.base': 'birthDate must be in yyyy-MM-dd format',
   }),
-  birthTime: Joi.string().pattern(timeRegexp).required().messages({
+  birthTime: Joi.string().pattern(timeRegexp).allow(null).messages({
     'string.pattern.base': 'birthTime must be in HH:mm format',
   }),
+  // always replaced as a whole: a new label with the old coordinates would
+  // be a place that does not exist
   place: Joi.object({
     label: Joi.string().required(),
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),
     timezone: Joi.string().required(),
-  }).required(),
+  }),
+};
+
+const createProfileSchema = Joi.object({
+  ...profileFields,
+  name: profileFields.name.required(),
+  birthDate: profileFields.birthDate.required(),
+  place: profileFields.place.required(),
 });
 
-const schemas = { createProfileSchema };
+const updateProfileSchema = Joi.object(profileFields).min(1).messages({
+  'object.min': 'At least one field must be provided',
+});
+
+const schemas = { createProfileSchema, updateProfileSchema };
 
 const Profile = model('profile', profileSchema);
 

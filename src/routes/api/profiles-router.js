@@ -20,6 +20,17 @@ profilesRouter.post(
   profilesController.create
 );
 
+profilesRouter.patch(
+  '/:id',
+  isValidId,
+  validateBody(schemas.updateProfileSchema),
+  profilesController.update
+);
+
 profilesRouter.delete('/:id', isValidId, profilesController.remove);
+
+profilesRouter.post('/:id/share', isValidId, profilesController.enableShare);
+
+profilesRouter.delete('/:id/share', isValidId, profilesController.disableShare);
 
 module.exports = profilesRouter;

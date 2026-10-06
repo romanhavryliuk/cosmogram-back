@@ -71,8 +71,19 @@ const findAspects = (planets) => {
   return aspects;
 };
 
+// with no birth time the chart is cast for local noon, so the planets are off
+// by at most half a day of motion (the Moon by ~7°, the rest by far less).
+// Houses, the ascendant and the midheaven turn over completely within a day,
+// so for such a chart they are left out rather than guessed
+const UNKNOWN_BIRTH_TIME = '12:00';
+
 const buildNatalChart = ({ birthDate, birthTime, place }) => {
-  const date = localToUtcDate(birthDate, birthTime, place.timezone);
+  const isTimeKnown = Boolean(birthTime);
+  const date = localToUtcDate(
+    birthDate,
+    birthTime || UNKNOWN_BIRTH_TIME,
+    place.timezone
+  );
   const raw = calcChart({
     date,
     latitude: place.latitude,
@@ -84,9 +95,15 @@ const buildNatalChart = ({ birthDate, birthTime, place }) => {
     sign: signOf(longitude),
     degree: degreeInSign(longitude),
     longitude: round(longitude),
-    house: houseOfLongitude(longitude, raw.cusps),
+    ...(isTimeKnown && { house: houseOfLongitude(longitude, raw.cusps) }),
     retrograde,
   }));
+
+  const aspects = findAspects(planets);
+
+  if (!isTimeKnown) {
+    return { planets, houses: [], aspects };
+  }
 
   const houses = raw.cusps.map((longitude, index) => ({
     house: index + 1,
@@ -97,7 +114,7 @@ const buildNatalChart = ({ birthDate, birthTime, place }) => {
   return {
     planets,
     houses,
-    aspects: findAspects(planets),
+    aspects,
     ascendant: round(raw.ascendant),
     midheaven: round(raw.midheaven),
   };
