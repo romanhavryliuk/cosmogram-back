@@ -264,6 +264,12 @@ Base path: `/api/places`. No auth — the guest form needs it too. The geocoding
 key is quota-limited (2,500 requests/day on the free OpenCage tier), so the
 route is rate-limited to 60 requests per 15 minutes per IP (`429` past that).
 
+Results are cached in memory for 7 days (up to 5,000 queries, least recently
+used evicted first), keyed by the query trimmed and lowercased — so "Lviv" and
+" lviv" cost one OpenCage request. Identical lookups that arrive at the same
+time share one request; failures are not cached. The cache is per instance and
+empties on restart.
+
 | Method | Endpoint | Description                                  |
 | ------ | -------- | --------------------------------------------- |
 | GET    | `/?query=` | Birth place autocomplete, via OpenCage       |
